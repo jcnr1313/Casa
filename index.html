@@ -1,11 +1,18 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HomeSync Pro - Control de Casa</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client para sincronización real -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -18,17 +25,22 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 pb-32">
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 pb-32 transition-colors duration-300">
 
     <!-- HEADER FIJO SUPERIOR -->
-    <header class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white p-6 shadow-lg rounded-b-3xl sticky top-0 z-20">
+    <header class="bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-900 dark:to-violet-950 text-white p-6 shadow-lg rounded-b-3xl sticky top-0 z-20 transition-colors">
         <div class="max-w-md mx-auto flex justify-between items-center">
             <div>
                 <h1 class="text-2xl font-bold tracking-tight">🏠 Nuestra Casa</h1>
                 <p id="header-subtitle" class="text-xs text-indigo-200 mt-0.5">Control inteligente en tiempo real</p>
             </div>
-            <div class="bg-white/20 p-2.5 rounded-full backdrop-blur-sm flex items-center gap-2">
-                <i class="fa-solid fa-wifi text-emerald-400 animate-pulse text-lg" title="Sincronizado"></i>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleDarkMode()" class="bg-white/20 p-2.5 rounded-full backdrop-blur-sm hover:bg-white/30 transition-all" title="Cambiar modo oscuro">
+                    <i id="dark-icon" class="fa-solid fa-moon text-lg"></i>
+                </button>
+                <div class="bg-white/20 p-2.5 rounded-full backdrop-blur-sm">
+                    <i id="sync-icon" class="fa-solid fa-wifi text-emerald-400 animate-pulse text-lg" title="Sincronizado"></i>
+                </div>
             </div>
         </div>
     </header>
@@ -36,7 +48,7 @@
     <!-- CONTENEDOR DE PESTAÑAS -->
     <main class="max-w-md mx-auto p-4">
 
-        <!-- VISTA 1: RESUMEN / CASA -->
+        <!-- VISTA 1: RESUMEN / CASA + CONFIGURACIONES -->
         <section id="tab-home" class="tab-content active space-y-4">
             <!-- Estado General / Clima -->
             <div class="bg-gradient-to-br from-indigo-500 to-indigo-700 text-white p-5 rounded-3xl shadow-sm relative overflow-hidden">
@@ -44,7 +56,7 @@
                     <i class="fa-solid fa-house-signal"></i>
                 </div>
                 <div class="relative z-10">
-                    <span class="bg-white/20 text-xs px-3 py-1 rounded-full font-semibold backdrop-blur-sm">Valencia</span>
+                    <span class="bg-white/25 text-xs px-3 py-1 rounded-full font-semibold backdrop-blur-sm">Valencia</span>
                     <div class="mt-4 flex items-baseline justify-between">
                         <div>
                             <h2 class="text-3xl font-bold">24°C</h2>
@@ -58,85 +70,129 @@
                 </div>
             </div>
 
-            <!-- Accesos rápidos / Domótica básica -->
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
-                <h3 class="font-bold text-slate-700 mb-3 text-sm flex items-center gap-2">
-                    <i class="fa-solid fa-bolt text-amber-500"></i> Automatizaciones Rápidas
+            <!-- Accesos rápidos / Domótica -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+                <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-3 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-bolt text-amber-500"></i> Automatizaciones Home Assistant
                 </h3>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="triggerAction('Modo Noche activado')" class="p-3.5 bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 rounded-2xl text-left transition-all group">
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <button onclick="ejecutarWebhook('night_mode', 'Modo Noche activado')" class="p-3.5 bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 border border-slate-100 dark:border-slate-700 rounded-2xl text-left transition-all group">
                         <i class="fa-solid fa-moon text-indigo-500 text-lg mb-2 group-hover:scale-110 transition-transform"></i>
                         <div class="font-bold text-xs">Modo Noche</div>
                         <div class="text-[10px] text-slate-400">Luces y persianas</div>
                     </button>
-                    <button onclick="triggerAction('Modo Ausente activado')" class="p-3.5 bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 rounded-2xl text-left transition-all group">
+                    <button onclick="ejecutarWebhook('away_mode', 'Modo Ausente activado')" class="p-3.5 bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 border border-slate-100 dark:border-slate-700 rounded-2xl text-left transition-all group">
                         <i class="fa-solid fa-person-walking-arrow-right text-indigo-500 text-lg mb-2 group-hover:scale-110 transition-transform"></i>
                         <div class="font-bold text-xs">Modo Ausente</div>
                         <div class="text-[10px] text-slate-400">Ahorro y seguridad</div>
                     </button>
                 </div>
+
+                <!-- Configuración Servidores (HA & Supabase) -->
+                <div class="border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
+                    <details class="text-xs text-slate-500 dark:text-slate-400">
+                        <summary class="cursor-pointer font-semibold text-indigo-600 dark:text-indigo-400">⚙️ Configurar Home Assistant</summary>
+                        <div class="mt-2 space-y-2">
+                            <input type="text" id="ha-url" placeholder="URL Base (ej. http://homeassistant.local:8123)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                            <input type="text" id="ha-token" placeholder="Webhook ID o Token" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                            <button onclick="guardarConfigHA()" class="w-full bg-indigo-600 text-white rounded-xl py-2 font-bold mt-1">Guardar HA</button>
+                        </div>
+                    </details>
+
+                    <details class="text-xs text-slate-500 dark:text-slate-400">
+                        <summary class="cursor-pointer font-semibold text-indigo-600 dark:text-indigo-400">☁️ Sincronización Supabase (Opcional)</summary>
+                        <div class="mt-2 space-y-2">
+                            <input type="text" id="sup-url" placeholder="Supabase Project URL" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                            <input type="text" id="sup-key" placeholder="Supabase Anon Key" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                            <button onclick="guardarConfigSupabase()" class="w-full bg-indigo-600 text-white rounded-xl py-2 font-bold mt-1">Conectar Supabase</button>
+                        </div>
+                    </details>
+                </div>
             </div>
         </section>
 
-        <!-- VISTA 2: LISTA DE LA COMPRA -->
+        <!-- VISTA 2: LISTA DE LA COMPRA CON CATEGORÍAS -->
         <section id="tab-compra" class="tab-content space-y-4">
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="bg-amber-100 text-amber-600 p-3 rounded-2xl text-xl">
+                        <div class="bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 p-3 rounded-2xl text-xl">
                             <i class="fa-solid fa-cart-shopping"></i>
                         </div>
                         <div>
                             <h2 class="font-bold text-lg">Supermercado</h2>
-                            <p class="text-xs text-slate-400">Añade lo que falte en casa</p>
+                            <p class="text-xs text-slate-400">Organizado por secciones</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span id="counter-compra" class="bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full">0</span>
+                        <span id="counter-compra" class="bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold px-2.5 py-1 rounded-full">0</span>
                         <button onclick="limpiarComprados()" title="Eliminar completados" class="text-slate-400 hover:text-rose-500 text-xs p-1.5 transition-colors">
                             <i class="fa-solid fa-broom"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Input para añadir -->
-                <div class="flex gap-2 mb-4">
+                <!-- Input y Selector de Categoría -->
+                <div class="space-y-2 mb-4">
                     <input type="text" id="input-item" placeholder="Ej. Leche, Huevos..." 
                         onkeypress="handleKeyPress(event)"
-                        class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all">
-                    <button onclick="addItemCompra()" class="bg-amber-500 hover:bg-amber-600 text-white px-5 rounded-2xl font-bold shadow-lg shadow-amber-500/35 transition-all active:scale-95">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
+                        class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all dark:text-white">
+                    <div class="flex gap-2">
+                        <select id="select-categoria" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                            <option value="Supermercado">🛒 Supermercado</option>
+                            <option value="Frescos">🍎 Frescos</option>
+                            <option value="Limpieza">🧼 Limpieza / Hogar</option>
+                            <option value="Farmacia">💊 Farmacia</option>
+                        </select>
+                        <button onclick="addItemCompra()" class="bg-amber-500 hover:bg-amber-600 text-white px-5 rounded-xl font-bold text-xs shadow-lg shadow-amber-500/35 transition-all active:scale-95">
+                            <i class="fa-solid fa-plus"></i> Añadir
+                        </button>
+                    </div>
                 </div>
 
                 <ul id="lista-compra" class="space-y-2.5"></ul>
             </div>
         </section>
 
-        <!-- VISTA 3: BOTIQUÍN -->
+        <!-- VISTA 3: BOTIQUÍN INTERACTIVO -->
         <section id="tab-botiquin" class="tab-content space-y-4">
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="bg-rose-100 text-rose-600 p-3 rounded-2xl text-xl">
+                        <div class="bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400 p-3 rounded-2xl text-xl">
                             <i class="fa-solid fa-pills"></i>
                         </div>
                         <div>
                             <h2 class="font-bold text-lg">Botiquín en Casa</h2>
-                            <p class="text-xs text-slate-400">Control de caducidades</p>
+                            <p class="text-xs text-slate-400">Control interactivo de caducidades</p>
                         </div>
                     </div>
                 </div>
+
+                <div class="space-y-2 mb-4 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-700">
+                    <input type="text" id="med-nombre" placeholder="Nombre (ej. Ibuprofeno 600mg)" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                    <div class="flex gap-2">
+                        <select id="med-tipo" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                            <option value="Adultos">Adultos</option>
+                            <option value="Niños">Niños</option>
+                            <option value="General">General</option>
+                        </select>
+                        <input type="month" id="med-caducidad" class="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                    </div>
+                    <input type="text" id="med-desc" placeholder="Descripción corta (ej. Para dolor de cabeza)" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-white">
+                    <button onclick="addMedicamento()" class="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl py-2 text-xs font-bold shadow-md shadow-rose-500/30 transition-all">Añadir al Botiquín</button>
+                </div>
+
                 <div id="lista-botiquin" class="space-y-3"></div>
             </div>
         </section>
 
         <!-- VISTA 4: NOTAS / AVISOS -->
         <section id="tab-notas" class="tab-content space-y-4">
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="bg-indigo-100 text-indigo-600 p-3 rounded-2xl text-xl">
+                        <div class="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 p-3 rounded-2xl text-xl">
                             <i class="fa-solid fa-note-sticky"></i>
                         </div>
                         <div>
@@ -149,7 +205,7 @@
                 <div class="flex gap-2 mb-4">
                     <input type="text" id="input-nota" placeholder="Ej. El paquete llega mañana..." 
                         onkeypress="handleNotaKeyPress(event)"
-                        class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                        class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:text-white">
                     <button onclick="addNota()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 rounded-2xl font-bold shadow-lg shadow-indigo-500/35 transition-all active:scale-95">
                         <i class="fa-solid fa-plus"></i>
                     </button>
@@ -161,22 +217,22 @@
 
     </main>
 
-    <!-- BARRA DE NAVEGACIÓN INFERIOR (BOTTOM NAV) -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 p-3 z-30 shadow-lg">
+    <!-- BARRA DE NAVEGACIÓN INFERIOR -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-3 z-30 shadow-lg transition-colors">
         <div class="max-w-md mx-auto flex justify-around items-center">
-            <button onclick="switchTab('home', this)" class="nav-btn flex flex-col items-center text-indigo-600 transition-all">
+            <button onclick="switchTab('home', this)" class="nav-btn flex flex-col items-center text-indigo-600 dark:text-indigo-400 transition-all">
                 <i class="fa-solid fa-house text-lg mb-1"></i>
                 <span class="text-[10px] font-bold">Casa</span>
             </button>
-            <button onclick="switchTab('compra', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 transition-all">
+            <button onclick="switchTab('compra', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
                 <i class="fa-solid fa-cart-shopping text-lg mb-1"></i>
                 <span class="text-[10px] font-medium">Compra</span>
             </button>
-            <button onclick="switchTab('botiquin', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 transition-all">
+            <button onclick="switchTab('botiquin', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
                 <i class="fa-solid fa-pills text-lg mb-1"></i>
                 <span class="text-[10px] font-medium">Botiquín</span>
             </button>
-            <button onclick="switchTab('notas', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 transition-all">
+            <button onclick="switchTab('notas', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
                 <i class="fa-solid fa-note-sticky text-lg mb-1"></i>
                 <span class="text-[10px] font-medium">Notas</span>
             </button>
@@ -185,13 +241,43 @@
 
     <!-- SCRIPTS DE CONTROL -->
     <script>
+        // --- SUPABASE CONFIG (Opcional) ---
+        let supabaseClient = null;
+        const supUrl = localStorage.getItem('sup_url');
+        const supKey = localStorage.getItem('sup_key');
+        if (supUrl && supKey && window.supabase) {
+            supabaseClient = window.supabase.createClient(supUrl, supKey);
+            document.getElementById('sync-icon').className = "fa-solid fa-cloud text-emerald-400 animate-pulse text-lg";
+        }
+
+        function guardarConfigSupabase() {
+            localStorage.setItem('sup_url', document.getElementById('sup-url').value);
+            localStorage.setItem('sup_key', document.getElementById('sup-key').value);
+            alert("Configuración de Supabase guardada. Recarga la página para activar.");
+        }
+
+        // --- MODO OSCURO ---
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const icon = document.getElementById('dark-icon');
+            html.classList.toggle('dark');
+            const isDark = html.classList.contains('dark');
+            localStorage.setItem('homesync_dark', isDark);
+            icon.className = isDark ? "fa-solid fa-sun text-lg text-amber-300" : "fa-solid fa-moon text-lg";
+        }
+
+        if (localStorage.getItem('homesync_dark') === 'true') {
+            document.documentElement.classList.add('dark');
+            document.getElementById('dark-icon').className = "fa-solid fa-sun text-lg text-amber-300";
+        }
+
         // --- CONTROL DE PESTAÑAS ---
         function switchTab(tabId, btnElement) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(`tab-${tabId}`).classList.add('active');
 
             document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('text-indigo-600');
+                btn.classList.remove('text-indigo-600', 'dark:text-indigo-400');
                 btn.classList.add('text-slate-400');
                 const span = btn.querySelector('span');
                 span.classList.remove('font-bold');
@@ -199,23 +285,58 @@
             });
 
             btnElement.classList.remove('text-slate-400');
-            btnElement.classList.add('text-indigo-600');
+            btnElement.classList.add('text-indigo-600', 'dark:text-indigo-400');
             const span = btnElement.querySelector('span');
             span.classList.remove('font-medium');
             span.classList.add('font-bold');
 
-            // Subtítulo dinámico superior
             const sub = document.getElementById('header-subtitle');
             if(tabId === 'home') sub.innerText = "Control inteligente en tiempo real";
-            if(tabId === 'compra') sub.innerText = "Gestión de la lista de la compra";
-            if(tabId === 'botiquin') sub.innerText = "Control de stock y caducidades";
+            if(tabId === 'compra') sub.innerText = "Gestión con categorías de compra";
+            if(tabId === 'botiquin') sub.innerText = "Control interactivo de stock";
             if(tabId === 'notas') sub.innerText = "Tablón de avisos familiares";
         }
 
-        // --- COMPRA ---
+        // --- HOME ASSISTANT WEBHOOKS ---
+        function guardarConfigHA() {
+            localStorage.setItem('ha_url', document.getElementById('ha-url').value);
+            localStorage.setItem('ha_token', document.getElementById('ha-token').value);
+            alert("Configuración de Home Assistant guardada.");
+        }
+
+        async function ejecutarWebhook(accion, mensaje) {
+            const url = localStorage.getItem('ha_url');
+            const token = localStorage.getItem('ha_token');
+
+            if(!url || !token) {
+                alert("Simulación: " + mensaje + " (Configura tu servidor HA abajo para llamadas reales)");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${url}/api/webhook/${token}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: accion })
+                });
+                if(response.ok) alert("¡Éxito! " + mensaje);
+                else alert("Error al conectar con Home Assistant.");
+            } catch (error) {
+                alert("Error de red: No se pudo conectar al servidor.");
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if(localStorage.getItem('ha_url')) document.getElementById('ha-url').value = localStorage.getItem('ha_url');
+            if(localStorage.getItem('ha_token')) document.getElementById('ha-token').value = localStorage.getItem('ha_token');
+            if(localStorage.getItem('sup_url')) document.getElementById('sup-url').value = localStorage.getItem('sup_url');
+            if(localStorage.getItem('sup_key')) document.getElementById('sup-key').value = localStorage.getItem('sup_key');
+        });
+
+        // --- COMPRA CON CATEGORÍAS ---
         let itemsCompra = JSON.parse(localStorage.getItem('homesync_compra')) || [
-            { id: 1, texto: 'Papel higiénico', comprado: false },
-            { id: 2, texto: 'Café de grano', comprado: true }
+            { id: 1, texto: 'Papel higiénico', categoria: 'Limpieza', comprado: false },
+            { id: 2, texto: 'Café de grano', categoria: 'Supermercado', comprado: true }
         ];
 
         function renderCompra() {
@@ -228,13 +349,22 @@
 
             itemsOrdenados.forEach(item => {
                 const li = document.createElement('li');
-                li.className = `flex items-center justify-between p-3.5 rounded-2xl border transition-all-custom ${item.comprado ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200 shadow-sm'}`;
+                li.className = `flex items-center justify-between p-3.5 rounded-2xl border transition-all-custom ${item.comprado ? 'bg-slate-50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 opacity-60' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm'}`;
+                
+                let badgeCatColor = 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+                if(item.categoria === 'Frescos') badgeCatColor = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+                if(item.categoria === 'Limpieza') badgeCatColor = 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300';
+                if(item.categoria === 'Farmacia') badgeCatColor = 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300';
+
                 li.innerHTML = `
                     <div class="flex items-center space-x-3 cursor-pointer flex-1" onclick="toggleComprado(${item.id})">
-                        <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${item.comprado ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}">
+                        <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${item.comprado ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600'}">
                             ${item.comprado ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
                         </div>
-                        <span class="text-sm font-medium ${item.comprado ? 'line-through text-slate-400' : 'text-slate-700'}">${item.texto}</span>
+                        <div class="flex-1">
+                            <span class="text-sm font-medium ${item.comprado ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-200'}">${item.texto}</span>
+                            <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold ml-2 ${badgeCatColor}">${item.categoria || 'Supermercado'}</span>
+                        </div>
                     </div>
                     <button onclick="eliminarItem(${item.id})" class="text-slate-300 hover:text-rose-500 p-2 transition-colors">
                         <i class="fa-solid fa-trash-can text-sm"></i>
@@ -247,8 +377,9 @@
 
         function addItemCompra() {
             const input = document.getElementById('input-item');
+            const categoria = document.getElementById('select-categoria').value;
             if(input.value.trim() === '') return;
-            itemsCompra.unshift({ id: Date.now(), texto: input.value.trim(), comprado: false });
+            itemsCompra.unshift({ id: Date.now(), texto: input.value.trim(), categoria, comprado: false });
             input.value = '';
             renderCompra();
         }
@@ -259,9 +390,9 @@
         function limpiarComprados() { itemsCompra = itemsCompra.filter(i => !i.comprado); renderCompra(); }
 
         // --- BOTIQUÍN ---
-        const medicamentos = [
-            { nombre: 'Ibuprofeno 600mg', tipo: 'Adultos', tipoClase: 'bg-blue-100 text-blue-700', desc: 'Para dolor de cabeza y fiebre', caducidad: '2027-10' },
-            { nombre: 'Apiretal Gotas', tipo: 'Niños', tipoClase: 'bg-purple-100 text-purple-700', desc: 'Paracetamol infantil', caducidad: '2026-05' }
+        let medicamentos = JSON.parse(localStorage.getItem('homesync_botiquin')) || [
+            { id: 1, nombre: 'Ibuprofeno 600mg', tipo: 'Adultos', desc: 'Para dolor de cabeza y fiebre', caducidad: '2027-10' },
+            { id: 2, nombre: 'Apiretal Gotas', tipo: 'Niños', desc: 'Paracetamol infantil', caducidad: '2026-05' }
         ];
 
         function renderBotiquin() {
@@ -274,32 +405,61 @@
                 const fechaCad = new Date(ano, mes - 1);
                 let diffMeses = (fechaCad.getFullYear() - hoy.getFullYear()) * 12 + (fechaCad.getMonth() - hoy.getMonth());
                 
-                let badgeClase = 'bg-emerald-50 text-emerald-600';
+                let badgeClase = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300';
                 let textoCad = `Caduca: ${mes}/${ano}`;
                 
                 if (diffMeses < 0) {
-                    badgeClase = 'bg-rose-50 text-rose-600';
+                    badgeClase = 'bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300';
                     textoCad = `Caducado (${mes}/${ano})`;
                 } else if (diffMeses <= 3) {
-                    badgeClase = 'bg-amber-50 text-amber-600';
+                    badgeClase = 'bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300';
                     textoCad = `Caduca pronto (${mes}/${ano})`;
                 }
 
+                let tipoClase = med.tipo === 'Adultos' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300';
+
                 contenedor.innerHTML += `
-                    <div class="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="font-bold text-sm">${med.nombre}</span>
-                                <span class="${med.tipoClase} text-[10px] px-2 py-0.5 rounded-full font-semibold">${med.tipo}</span>
+                                <span class="font-bold text-sm dark:text-white">${med.nombre}</span>
+                                <span class="${tipoClase} text-[10px] px-2 py-0.5 rounded-full font-semibold">${med.tipo}</span>
                             </div>
                             <p class="text-xs text-slate-400 mt-0.5">${med.desc}</p>
                         </div>
-                        <div class="text-right">
+                        <div class="flex items-center gap-2">
                             <span class="text-xs font-bold ${badgeClase} px-2.5 py-1 rounded-lg">${textoCad}</span>
+                            <button onclick="eliminarMedicamento(${med.id})" class="text-slate-300 hover:text-rose-500 p-1 transition-colors">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
                         </div>
                     </div>
                 `;
             });
+            localStorage.setItem('homesync_botiquin', JSON.stringify(medicamentos));
+        }
+
+        function addMedicamento() {
+            const nombre = document.getElementById('med-nombre').value.trim();
+            const tipo = document.getElementById('med-tipo').value;
+            const caducidad = document.getElementById('med-caducidad').value;
+            const desc = document.getElementById('med-desc').value.trim();
+
+            if(!nombre || !caducidad) {
+                alert("Por favor, introduce al menos el nombre y la fecha de caducidad.");
+                return;
+            }
+
+            medicamentos.push({ id: Date.now(), nombre, tipo, caducidad, desc });
+            document.getElementById('med-nombre').value = '';
+            document.getElementById('med-desc').value = '';
+            document.getElementById('med-caducidad').value = '';
+            renderBotiquin();
+        }
+
+        function eliminarMedicamento(id) {
+            medicamentos = medicamentos.filter(m => m.id !== id);
+            renderBotiquin();
         }
 
         // --- NOTAS RÁPIDAS ---
@@ -313,9 +473,9 @@
 
             notas.forEach(nota => {
                 const li = document.createElement('li');
-                li.className = "flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm";
+                li.className = "flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm";
                 li.innerHTML = `
-                    <span class="text-sm text-slate-700 font-medium flex-1">${nota.texto}</span>
+                    <span class="text-sm text-slate-700 dark:text-slate-200 font-medium flex-1">${nota.texto}</span>
                     <button onclick="eliminarNota(${nota.id})" class="text-slate-300 hover:text-rose-500 p-2 transition-colors">
                         <i class="fa-solid fa-trash-can text-sm"></i>
                     </button>
@@ -335,11 +495,6 @@
 
         function handleNotaKeyPress(e) { if(e.key === 'Enter') addNota(); }
         function eliminarNota(id) { notas = notas.filter(n => n.id !== id); renderNotas(); }
-
-        // --- ACCIONES RÁPIDAS ---
-        function triggerAction(mensaje) {
-            alert("Acción ejecutada: " + mensaje);
-        }
 
         // Inicialización general
         renderCompra();
